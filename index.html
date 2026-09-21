@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <!-- 
+        NaviCore - מערכת ניווט ללא GPS
+        פרויקט גמר: מיכאל לוין – 214780512 | תשפ"ו – 2026
+        
+        הסבר כללי לקובץ:
+        זהו קובץ HTML יחיד שמכיל את כל האתר.
+        הוא בנוי מ-3 חלקים:
+        1. HTML - השלד של הדפים (מבנה)
+        2. CSS - העיצוב והצבעים (נראה טוב)
+        3. JavaScript - הלוגיקה (מה קורה כשלוחצים)
+        
+        השתמשנו ב-Bootstrap כדי שהעיצוב יהיה מודרני ורספונסיבי בלי לכתוב המון קוד.
+        השתמשנו ב-Leaflet.js כדי להציג מפה אמיתית (OpenStreetMap).
+    -->
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NaviCore - ניווט חכם</title>
+    
+    <!-- Bootstrap 5 CSS - ספריית עיצוב מוכנה -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <!-- FontAwesome - אייקונים יפים -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Leaflet CSS - סגנונות למפה -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        /* =========================================
+           CSS - עיצוב מותאם אישית
+           ========================================= */
+        
+        /* הגדרות בסיסיות לכל הדף */
+        body {
+            background-color: #f8f9fa; /* אפור בהיר מאוד לרקע */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden; /* מונע גלילה לצדדים */
+        }
+
+        /* --- עיצוב דף הלוגין --- */
+        .login-container {
+            min-height: 100vh; /* גובה מלא של המסך */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%); /* רקע כחול הדרגתי */
+        }
+        
+        .login-card {
+            background: white;
+            border-radius: 20px; /* פינות מעוגלות */
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); /* צל רך */
+            width: 100%;
+            max-width: 400px;
+        }
+
+        /* --- עיצוב דף הבית (מפה) --- */
+        #map {
+            height: 100vh; /* המפה תופסת את כל גובה המסך */
+            width: 100%;
+            z-index: 1; /* שכבה תחתונה */
+        }
+
+        /* סרגל חיפוש צף מעל המפה */
+        .floating-search {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%); /* מרכז בדיוק */
+            z-index: 1000; /* מעל המפה */
+            background: white;
+            padding: 15px;
+            border-radius: 50px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            width: 90%;
+            max-width: 500px;
+            display: flex;
+            gap: 10px;
+        }
+
+        /* מד מהירות צף */
+        .speedometer {
+            position: absolute;
+            bottom: 80px; /* מעל התפריט התחתון */
+            right: 20px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid #0d6efd;
+        }
+        
+        .speed-value { font-size: 24px; font-weight: bold; }
+        .speed-unit { font-size: 10px; opacity: 0.8; }
+
+        /* מצפן צף */
+        .compass {
+            position: absolute;
+            bottom: 180px;
+            right: 25px;
+            z-index: 1000;
+            background: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            font-size: 20px;
+            color: #0d6efd;
+        }
+
+        /* --- תפריט תחתון קבוע --- */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            z-index: 2000;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            padding: 10px 0;
+            display: flex;
+            justify-content: space-around;
+        }
+
+        .nav-item {
+            text-align: center;
+            color: #adb5bd;
+            cursor: pointer;
+            transition: color 0.3s;
+            flex: 1;
+        }
+
+        .nav-item.active { color: #0d6efd; } /* צבע פעיל */
+        .nav-item i { font-size: 20px; margin-bottom: 4px; display: block; }
+        .nav-item span { font-size: 11px; }
+
+        /* --- עמודי תוכן (הגדרות/אודות/עזרה) --- */
+        .page-content {
+            padding-top: 20px;
+            padding-bottom: 100px; /* רווח לתפריט התחתון */
+            min-height: 100vh;
+            background: #f8f9fa;
+        }
+
+        .info-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        /* מחלקות עזר להסתרת דפים */
+        .d-none-important { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <!-- =========================================
+         HTML - מבנה הדפים
+         ========================================= -->
+
+    <!-- 1. דף לוגין -->
+    <div id="page-login" class="login-container">
+        <div class="login-card text-center">
+            <i class="fas fa-map-marked-alt fa-3x text-primary mb-3"></i>
+            <h2 class="fw-bold mb-4">NaviCore</h2>
+            <p class="text-muted mb-4">מערכת ניווט מתקדמת ללא GPS</p>
+            
+            <!-- טופס התחברות (מדומה) -->
+            <form onsubmit="handleLogin(event)">
+                <div class="mb-3">
+                    <input type="text" class="form-control form-control-lg" placeholder="שם משתמש" required>
+                </div>
+                <div class="mb-3">
+                    <input type="password" class="form-control form-control-lg" placeholder="סיסמה" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg w-100 rounded-pill">
+                    <i class="fas fa-sign-in-alt ms-2"></i> כניסה
+                </button>
+            </form>
+            <small class="text-muted mt-3 d-block">מיכאל לוין • 214780512 • תשפ"ו</small>
+        </div>
+    </div>
+
+    <!-- 2. דף בית (מפה) -->
+    <div id="page-home" class="d-none-important">
+        <!-- המפה עצמה -->
+        <div id="map"></div>
+        
+        <!-- סרגל חיפוש צף -->
+        <div class="floating-search">
+            <input type="text" class="form-control border-0 bg-light" placeholder="📍 נקודת התחלה">
+            <input type="text" class="form-control border-0 bg-light" placeholder="🏁 יעד">
+            <button class="btn btn-primary rounded-circle" style="width:45px; height:45px;">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
+
+        <!-- ווידג'טים צפים -->
+        <div class="compass"><i class="fas fa-compass"></i></div>
+        <div class="speedometer">
+            <span class="speed-value" id="speed-display">0</span>
+            <span class="speed-unit">km/h</span>
+        </div>
+
+        <!-- תפריט תחתון -->
+        <div class="bottom-nav">
+            <div class="nav-item active" onclick="navigateTo('home')">
+                <i class="fas fa-map"></i><span>מפה</span>
+            </div>
+            <div class="nav-item" onclick="navigateTo('settings')">
+                <i class="fas fa-cog"></i><span>הגדרות</span>
+            </div>
+            <div class="nav-item" onclick="navigateTo('about')">
+                <i class="fas fa-info-circle"></i><span>אודות</span>
+            </div>
+            <div class="nav-item" onclick="navigateTo('help')">
+                <i class="fas fa-question-circle"></i><span>עזרה</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. דף הגדרות -->
+    <div id="page-settings" class="page-content d-none-important container">
+        <h3 class="fw-bold mb-4 text-primary"><i class="fas fa-sliders-h ms-2"></i>הגדרות מערכת</h3>
+        
+        <div class="info-card">
+            <h5 class="fw-bold mb-3">חיישנים וציוד</h5>
+            <!-- מתגים להפעלת/כיבוי חיישנים (ויזואלי בלבד) -->
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                <span><i class="fas fa-bluetooth-b text-primary ms-2"></i>OBD-2 (Vgate)</span>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" checked>
+                </div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                <span><i class="fas fa-video text-primary ms-2"></i>מצלמה (ESP32CAM)</span>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" checked>
+                </div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                <span><i class="fas fa-microchip text-primary ms-2"></i>IMU (MPU9250)</span>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" checked>
+                </div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center py-2">
+                <span><i class="fas fa-wind text-primary ms-2"></i>ברומטר (BMP280)</span>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox">
+                </div>
+            </div>
+        </div>
+
+        <div class="info-card">
+            <h5 class="fw-bold mb-3">אלגוריתמים</h5>
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                <span>Dead Reckoning</span>
+                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" checked></div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                <span>Visual Place Recognition</span>
+                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" checked></div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center py-2">
+                <span>Map Matching</span>
+                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" checked></div>
+            </div>
+        </div>
+        
+        <div class="alert alert-info small">
+            <i class="fas fa-info-circle ms-1"></i>
+            נתוני OBD מתקבלים בקצב 10-20Hz. המערכת מבצעת אינטרפולציה ל-50-100Hz לתחושה חלקה.
+        </div>
+    </div>
+
+    <!-- 4. דף אודות -->
+    <div id="page-about" class="page-content d-none-important container">
+        <div class="text-center mb-4">
+            <i class="fas fa-satellite-dish fa-3x text-primary mb-3"></i>
+            <h2 class="fw-bold">NaviCore</h2>
+            <p class="text-muted">ניווט אוטונומי ללא תלות ב-GPS</p>
+        </div>
+
+        <div class="info-card">
+            <h5 class="fw-bold text-primary mb-3">איך זה עובד?</h5>
+            <p>המערכת משלבת 4 מקורות מידע כדי לדעת איפה הרכב נמצא גם במנהרות, חניונים או אזורים ללא קליטת לוויין:</p>
+            <ol class="small">
+                <li class="mb-2"><strong>OBD-2:</strong> מודד מהירות מדויקת מהמנוע.</li>
+                <li class="mb-2"><strong>MPU9250 (IMU):strong> מודד סיבובים ותאוצה (Gyroscope).</li>
+                <li class="mb-2"><strong>מצלמה:</strong> מזהה צמתים, כיכרות ושלטים (Computer Vision).</li>
+                <li class="mb-2"><strong>מפה:</strong> משווה את הנתונים לכבישים קיימים (Map Matching).</li>
+            </ol>
+        </div>
+
+        <div class="info-card">
+            <h5 class="fw-bold text-primary mb-3">חומרה בשימוש</h5>
+            <ul class="list-unstyled small">
+                <li class="mb-2"><i class="fas fa-check text-success ms-2"></i>ESP32 CS-ESP32-S0 (בקרה ראשית)</li>
+                <li class="mb-2"><i class="fas fa-check text-success ms-2"></i>ESP32CAM OV3660 (ראייה)</li>
+                <li class="mb-2"><i class="fas fa-check text-success ms-2"></i>Vgate iCar Pro Bluetooth 4.0 (OBD)</li>
+                <li class="mb-2"><i class="fas fa-check text-success ms-2"></i>AH Robot 10DOF MPU9250 + BMP280</li>
+            </ul>
+        </div>
+
+        <div class="text-center text-muted small mt-4">
+            <p>פרויקט גמר • מיכאל לוין • 214780512<br>תשפ"ו – 2026</p>
+        </div>
+    </div>
+
+    <!-- 5. דף עזרה -->
+    <div id="page-help" class="page-content d-none-important container">
+        <h3 class="fw-bold mb-4 text-primary"><i class="fas fa-life-ring ms-2"></i>מרכז עזרה</h3>
+        
+        <div class="accordion" id="helpAccordion">
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#c1">
+                        איך מתחברים ל-OBD?
+                    </button>
+                </h2>
+                <div id="c1" class="accordion-collapse collapse show" data-bs-parent="#helpAccordion">
+                    <div class="accordion-body small">
+                        חבר את ה-Vgate iCar Pro לשקע ה-OBD ברכב. הפעל בלוטות' בטלפון/ESP32 וחפש את המכשיר "V-LINKED". הסיסמה כברירת מחדל היא 1234.
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c2">
+                        המצלמה לא עובדת?
+                    </button>
+                </h2>
+                <div id="c2" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                    <div class="accordion-body small">
+                        ודא שה-ESP32CAM מחובר לאותה רשת WiFi כמו הטלפון. בדוק בדף ההגדרות שהמתג "מצלמה" דולק.
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c3">
+                        מה זה Drift?
+                    </button>
+                </h2>
+                <div id="c3" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                    <div class="accordion-body small">
+                        סטייה מצטברת בחישוב המיקום כשאין GPS. המערכת מתקנת אותה אוטומטית כשהיא מזהה צומת או Landmark במצלמה.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================
+         SCRIPTS - ספריות חיצוניות
+         ========================================= -->
+    <!-- Bootstrap JS (לתפריטים ואקורדיון) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Leaflet JS (למפה) -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- =========================================
+         JAVASCRIPT - הלוגיקה שלנו
+         ========================================= -->
+    <script>
+        // משתנה גלובלי לשמירת המפה (כדי לא ליצור אותה פעמיים)
+        let map = null;
+        let speedInterval = null;
+
+        /**
+         * פונקציית התחברות (מדומה)
+         * פשוט מסתירה את דף הלוגין ומראה את דף הבית
+         */
+        function handleLogin(e) {
+            e.preventDefault(); // מונע רענון דף
+            
+            // אנימציה קטנה של הצלחה
+            const btn = e.target.querySelector('button');
+            btn.innerHTML = '<i class="fas fa-check ms-2"></i> הצלחה!';
+            btn.classList.replace('btn-primary', 'btn-success');
+            
+            setTimeout(() => {
+                document.getElementById('page-login').classList.add('d-none-important');
+                document.getElementById('page-home').classList.remove('d-none-important');
+                initMap(); // מפעיל את המפה רק אחרי הכניסה
+                startSpeedSimulation(); // מתחיל סימולציית מהירות
+            }, 800);
+        }
+
+        /**
+         * ניווט בין דפים (SPA פשוט)
+         * מסתיר את כל הדפים ומראה רק את המבוקש
+         */
+        function navigateTo(pageName) {
+            // 1. הסתר את כל הדפים
+            ['home', 'settings', 'about', 'help'].forEach(p => {
+                document.getElementById(`page-${p}`).classList.add('d-none-important');
+            });
+            
+            // 2. הצג את הדף המבוקש
+            document.getElementById(`page-${pageName}`).classList.remove('d-none-important');
+            
+            // 3. עדכן את התפריט התחתון (מי פעיל?)
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            // מצא את הכפתור שנלחץ והפעל אותו
+            event.currentTarget.classList.add('active');
+
+            // אם חוזרים למפה, כדאי לרענן את הגודל שלה
+            if (pageName === 'home' && map) {
+                setTimeout(() => map.invalidateSize(), 100);
+            }
+        }
+
+        /**
+         * אתחול המפה עם Leaflet
+         */
+        function initMap() {
+            if (map) return; // כבר נוצר
+            
+            // יצירת מפה ממורכזת על תל אביב
+            map = L.map('map', { zoomControl: false }).setView([32.0853, 34.7818], 13);
+            
+            // הוספת שכבת מפה מ-OpenStreetMap
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // הוספת סמן מיקום מדומה (הרכב שלנו)
+            const carIcon = L.divIcon({
+                className: 'custom-div-icon',
+                html: "<div style='background:#0d6efd;width:20px;height:20px;border-radius:50%;border:3px solid white;box-shadow:0 0 10px rgba(0,0,0,0.5);'></div>",
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+            
+            L.marker([32.0853, 34.7818], {icon: carIcon}).addTo(map);
+        }
+
+        /**
+         * סימולציית מהירות
+         * מדמה קבלת נתונים מ-OBD2 ומעדכנת את התצוגה
+         */
+        function startSpeedSimulation() {
+            const speedEl = document.getElementById('speed-display');
+            let speed = 0;
+            let targetSpeed = 60;
+            
+            speedInterval = setInterval(() => {
+                // שינוי אקראי קטן במהירות (כמו בנסיעה אמיתית)
+                const change = (Math.random() - 0.5) * 5;
+                speed += change;
+                
+                // שמירה על גבולות הגיוניים
+                if (speed < 0) speed = 0;
+                if (speed > 120) speed = 120;
+                
+                // עדכון התצוגה
+                speedEl.innerText = Math.round(speed);
+            }, 500); // עדכון כל חצי שנייה
+        }
+    </script>
+</body>
+</html>
